@@ -1,183 +1,148 @@
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(const MyApp());
+  // 最初に表示するWidget
+  runApp(const MyTodoApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyTodoApp extends StatelessWidget {
+  const MyTodoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      title: 'Translate App',
-      home: HomePage(),
+    return MaterialApp(
+      // アプリ名
+      title: 'My Todo App',
+      theme: ThemeData(
+        // テーマカラー
+        primarySwatch: Colors.blue,
+      ),
+      // リスト一覧画面を表示
+      home: TodoListPage(),
     );
   }
 }
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+// リスト一覧画面用Widget
+class TodoListPage extends StatefulWidget {
+  const TodoListPage({super.key});
 
   @override
-  State<StatefulWidget> createState() => _HomePageState();
+  _TodoListPageState createState() => _TodoListPageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  String? _result;
-  bool _isLoading = false;
-
-  Future<void> _translate(String sentence) async {
-    setState(() {
-      _isLoading = true;
-    });
-    final url = Uri.parse('https://labs.goo.ne.jp/api/hiragana');
-    final headers = {'Content-Type': 'application/json'};
-    final body = json.encode({
-      // gooラボのWebサイトで取得したアプリケーションIDを<token>と置き換えてください
-      // https://labs.goo.ne.jp/apiusage/
-      'app_id': 'token',
-      'sentence': sentence,
-      'output_type': 'hiragana',
-    });
-    final response = await http.post(
-      url,
-      headers: headers,
-      body: body,
-    );
-    final responseJson = json.decode(response.body) as Map<String, dynamic>;
-
-    setState(() {
-      _result = responseJson['converted'];
-      _isLoading = false;
-    });
-  }
+class _TodoListPageState extends State<TodoListPage> {
+  List<String> todoList = [];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Translate App"),
+        title: const Text('リスト一覧'),
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.blueAccent,
       ),
-      body: _body(context),
-    );
-  }
-
-  Widget _body(BuildContext context) {
-    final result = _result;
-    if (result != null) {
-      return _Result(
-          sentence: result,
-          onTapBack: () {
-            setState(() {
-              _result = null;
-            });
-          });
-    } else if (_isLoading) {
-      return const _Loading();
-    } else {
-      return _InputForm(onSubmit: _translate);
-    }
-  }
-}
-
-class _InputForm extends StatefulWidget {
-  const _InputForm({super.key, required this.onSubmit});
-
-  final Function(String) onSubmit;
-  @override
-  State<StatefulWidget> createState() => _InputFormState();
-}
-
-class _InputFormState extends State<_InputForm> {
-  final _formKey = GlobalKey<FormState>();
-  final _textEditController = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextFormField(
-              controller: _textEditController,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                hintText: '文章を入力してください',
+      body: ListView.builder(
+          itemCount: todoList.length,
+          itemBuilder: (context, index) {
+            return Card(
+              child: ListTile(
+                title: Text(todoList[index]),
+                onTap: () {
+                  // "push"で新規画面に遷移
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (context) {
+                      // 遷移先の画面としてリスト追加画面を指定
+                      return TodoAddPage();
+                    }),
+                  );
+                },
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return '文章が入力されていません';
-                }
-                return null;
-              },
-            ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              final formState = _formKey.currentState!;
-              if (!formState.validate()) {
-                return;
-              }
+            );
+          }),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          // "push"で新規画面に遷移
+          final newListText = await Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) {
+              // 遷移先の画面としてリスト追加画面を指定
+              return TodoAddPage();
+            }),
+          );
 
-              widget.onSubmit(_textEditController.text);
-            },
-            child: const Text(
-              '変換',
-            ),
-          ),
-        ],
+          if (newListText != null) {
+            setState(() {
+              todoList.add(newListText as String);
+            });
+          }
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }
 }
 
-class _Loading extends StatelessWidget {
-  const _Loading({super.key});
+// リスト追加画面用Widget
+class TodoAddPage extends StatefulWidget {
+  const TodoAddPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
-  }
+  _TodoAddPageState createState() => _TodoAddPageState();
 }
 
-class _Result extends StatelessWidget {
-  const _Result({
-    super.key,
-    required this.sentence,
-    required this.onTapBack,
-  });
-
-  final String sentence;
-  final void Function() onTapBack;
+class _TodoAddPageState extends State<TodoAddPage> {
+  String _text = '';
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints.expand(),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(sentence),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: onTapBack,
-            child: const Text(
-              '再入力',
+    return Scaffold(
+      // *** 追加する部分 ***
+      appBar: AppBar(
+        title: const Text('リスト追加'),
+      ),
+      // *** 追加する部分 ***
+      body: Container(
+        // 余白を付ける
+        padding: const EdgeInsets.all(64),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            // テキスト入力
+            TextField(onChanged: (String value) {
+              // テキストフィールドの内容が変更された時
+              setState(() {
+                // テキストフィールドの内容を変数に代入
+                _text = value;
+              });
+            }),
+            const SizedBox(height: 8),
+            Container(
+              // 横幅いっぱいに広げる
+              width: double.infinity,
+              // リスト追加ボタン
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop(_text);
+                },
+                child: const Text('リスト追加'),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Container(
+              // 横幅いっぱいに広げる
+              width: double.infinity,
+              // キャンセルボタン
+              child: TextButton(
+                // ボタンをクリックした時の処理
+                onPressed: () {
+                  // "pop"で前の画面に戻る
+                  Navigator.of(context).pop();
+                },
+                child: const Text('キャンセル'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
